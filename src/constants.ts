@@ -28,7 +28,7 @@ export const LABELS: Label[] = [
     rkey: '3lbug2vzsgt2c',
     identifier: 'henry',
     locales: [
-      { lang: 'en', name: 'prince hrh dickhead 💩', description: 'h fox'},
+      { lang: 'en', name: 'hrh prince dickhead 💩', description: 'h fox'},
     ]
   },
   {
