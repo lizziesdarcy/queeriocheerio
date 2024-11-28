@@ -13,13 +13,13 @@ function epochUsToDateTime(cursor: number): string {
 }
 
 try {
-  logger.info('Trying to read cursor from cursor.txt...');
+  logger.info('Starting labeler service...');
   cursor = Number(fs.readFileSync('cursor.txt', 'utf8'));
-  logger.info(`Cursor found: ${cursor} (${epochUsToDateTime(cursor)})`);
+  logger.info(`Starting from cursor: ${cursor}`);
 } catch (error) {
   if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
     cursor = Math.floor(Date.now() * 1000);
-    logger.info(`Cursor not found in cursor.txt, setting cursor to: ${cursor} (${epochUsToDateTime(cursor)})`);
+    logger.info(`Creating new cursor: ${cursor}`);
     fs.writeFileSync('cursor.txt', cursor.toString(), 'utf8');
   } else {
     logger.error(error);
@@ -34,13 +34,13 @@ const jetstream = new Jetstream({
 });
 
 jetstream.on('open', () => {
-  logger.info('Debug: Jetstream connection opened');
-  logger.info(
-    `Connected to Jetstream at ${FIREHOSE_URL} with cursor ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor!)})`,
-  );
+  logger.info('=== Jetstream Connected ===');
+  logger.info(`Endpoint: ${FIREHOSE_URL}`);
+  logger.info(`Starting cursor: ${jetstream.cursor}`);
+  
   cursorUpdateInterval = setInterval(() => {
     if (jetstream.cursor) {
-      logger.info(`Cursor updated to: ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor)})`);
+      logger.info(`Cursor: ${jetstream.cursor}`);
       fs.writeFile('cursor.txt', jetstream.cursor.toString(), (err) => {
         if (err) logger.error(err);
       });
@@ -50,48 +50,49 @@ jetstream.on('open', () => {
 
 jetstream.on('close', () => {
   clearInterval(cursorUpdateInterval);
-  logger.info('Debug: Jetstream connection closed.');
+  logger.info('=== Jetstream Disconnected ===');
 });
 
 jetstream.on('error', (error) => {
-  logger.error(`Debug: Jetstream error: ${error.message}`);
+  logger.error('=== Jetstream Error ===');
+  logger.error(error.message);
 });
 
 jetstream.onCreate(WANTED_COLLECTION, (event: CommitCreateEvent<typeof WANTED_COLLECTION>) => {
-  logger.info('Debug: Received event:', event);
-  logger.info('Debug: Current DID:', DID);
-  logger.info('Debug: Event URI:', event.commit?.record?.subject?.uri);
+  logger.info('\n=== New Like Event ===');
+  logger.info('User:', event.did);
+  logger.info('Post:', event.commit?.record?.subject?.uri);
 
   if (event.commit?.record?.subject?.uri?.includes(DID)) {
-    logger.info('Debug: DID match found, processing label');
+    logger.info('✓ Processing label request');
     label(event.did, event.commit.record.subject.uri.split('/').pop()!);
   } else {
-    logger.info('Debug: No DID match found in URI');
+    logger.info('✗ Not a label request - ignoring');
   }
+  logger.info('=== End Event ===\n');
 });
 
 const metricsServer = startMetricsServer(METRICS_PORT);
 
 labelerServer.app.listen({ port: PORT, host: HOST }, (error, address) => {
   if (error) {
-    logger.error('Debug: Error starting server: %s', error);
+    logger.error('Failed to start labeler server:', error);
   } else {
-    logger.info('Debug: Labeler server listening on ' + address);
+    logger.info(`Labeler server running on ${address}`);
   }
 });
 
 jetstream.start();
-logger.info('Debug: Jetstream started');
 
 function shutdown() {
   try {
-    logger.info('Debug: Shutting down gracefully...');
+    logger.info('=== Shutting Down ===');
     fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
     jetstream.close();
     labelerServer.stop();
     metricsServer.close();
   } catch (error) {
-    logger.error(`Debug: Error shutting down gracefully: ${error}`);
+    logger.error('Shutdown error:', error);
     process.exit(1);
   }
 }
