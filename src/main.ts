@@ -1,6 +1,5 @@
 import { CommitCreateEvent, Jetstream } from '@skyware/jetstream';
 import fs from 'node:fs';
-
 import { CURSOR_UPDATE_INTERVAL, DID, FIREHOSE_URL, HOST, METRICS_PORT, PORT, WANTED_COLLECTION } from './config.js';
 import { label, labelerServer } from './label.js';
 import logger from './logger.js';
@@ -35,6 +34,7 @@ const jetstream = new Jetstream({
 });
 
 jetstream.on('open', () => {
+  logger.info('Debug: Jetstream connection opened');
   logger.info(
     `Connected to Jetstream at ${FIREHOSE_URL} with cursor ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor!)})`,
   );
@@ -50,17 +50,23 @@ jetstream.on('open', () => {
 
 jetstream.on('close', () => {
   clearInterval(cursorUpdateInterval);
-  logger.info('Jetstream connection closed.');
+  logger.info('Debug: Jetstream connection closed.');
 });
 
 jetstream.on('error', (error) => {
-  logger.error(`Jetstream error: ${error.message}`);
+  logger.error(`Debug: Jetstream error: ${error.message}`);
 });
 
 jetstream.onCreate(WANTED_COLLECTION, (event: CommitCreateEvent<typeof WANTED_COLLECTION>) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  logger.info('Debug: Received event:', event);
+  logger.info('Debug: Current DID:', DID);
+  logger.info('Debug: Event URI:', event.commit?.record?.subject?.uri);
+
   if (event.commit?.record?.subject?.uri?.includes(DID)) {
+    logger.info('Debug: DID match found, processing label');
     label(event.did, event.commit.record.subject.uri.split('/').pop()!);
+  } else {
+    logger.info('Debug: No DID match found in URI');
   }
 });
 
@@ -68,23 +74,24 @@ const metricsServer = startMetricsServer(METRICS_PORT);
 
 labelerServer.app.listen({ port: PORT, host: HOST }, (error, address) => {
   if (error) {
-    logger.error('Error starting server: %s', error);
+    logger.error('Debug: Error starting server: %s', error);
   } else {
-    logger.info(`Labeler server listening on ${address}`);
+    logger.info('Debug: Labeler server listening on ' + address);
   }
 });
 
 jetstream.start();
+logger.info('Debug: Jetstream started');
 
 function shutdown() {
   try {
-    logger.info('Shutting down gracefully...');
+    logger.info('Debug: Shutting down gracefully...');
     fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
     jetstream.close();
     labelerServer.stop();
     metricsServer.close();
   } catch (error) {
-    logger.error(`Error shutting down gracefully: ${error}`);
+    logger.error(`Debug: Error shutting down gracefully: ${error}`);
     process.exit(1);
   }
 }
