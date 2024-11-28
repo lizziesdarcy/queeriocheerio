@@ -15,11 +15,9 @@ function epochUsToDateTime(cursor: number): string {
 try {
   logger.info('Starting labeler service...');
   cursor = Number(fs.readFileSync('cursor.txt', 'utf8'));
-  logger.info(`Starting from cursor: ${cursor}`);
 } catch (error) {
   if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
     cursor = Math.floor(Date.now() * 1000);
-    logger.info(`Creating new cursor: ${cursor}`);
     fs.writeFileSync('cursor.txt', cursor.toString(), 'utf8');
   } else {
     logger.error(error);
@@ -34,13 +32,9 @@ const jetstream = new Jetstream({
 });
 
 jetstream.on('open', () => {
-  logger.info('=== Jetstream Connected ===');
-  logger.info(`Endpoint: ${FIREHOSE_URL}`);
-  logger.info(`Starting cursor: ${jetstream.cursor}`);
-  
+  logger.info('Jetstream connected');
   cursorUpdateInterval = setInterval(() => {
     if (jetstream.cursor) {
-      logger.info(`Cursor: ${jetstream.cursor}`);
       fs.writeFile('cursor.txt', jetstream.cursor.toString(), (err) => {
         if (err) logger.error(err);
       });
@@ -48,54 +42,39 @@ jetstream.on('open', () => {
   }, CURSOR_UPDATE_INTERVAL);
 });
 
-jetstream.on('close', () => {
-  clearInterval(cursorUpdateInterval);
-  logger.info('=== Jetstream Disconnected ===');
-});
-
-jetstream.on('error', (error) => {
-  logger.error('=== Jetstream Error ===');
-  logger.error(error.message);
-});
-
 jetstream.onCreate(WANTED_COLLECTION, (event: CommitCreateEvent<typeof WANTED_COLLECTION>) => {
-  logger.info('\n=== New Like Event ===');
-  logger.info('User:', event.did);
-  logger.info('Post:', event.commit?.record?.subject?.uri);
-
   if (event.commit?.record?.subject?.uri?.includes(DID)) {
-    logger.info('✓ Processing label request');
+    logger.info('Label request from:', event.did);
     label(event.did, event.commit.record.subject.uri.split('/').pop()!);
-  } else {
-    logger.info('✗ Not a label request - ignoring');
   }
-  logger.info('=== End Event ===\n');
 });
 
 const metricsServer = startMetricsServer(METRICS_PORT);
 
 labelerServer.app.listen({ port: PORT, host: HOST }, (error, address) => {
   if (error) {
-    logger.error('Failed to start labeler server:', error);
+    logger.error('Server error:', error);
   } else {
-    logger.info(`Labeler server running on ${address}`);
+    logger.info('Labeler server started');
   }
 });
 
 jetstream.start();
 
-function shutdown() {
-  try {
-    logger.info('=== Shutting Down ===');
-    fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
-    jetstream.close();
-    labelerServer.stop();
-    metricsServer.close();
-  } catch (error) {
-    logger.error('Shutdown error:', error);
-    process.exit(1);
-  }
-}
+process.on('SIGINT', () => {
+  logger.info('Shutting down...');
+  fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
+  jetstream.close();
+  labelerServer.stop();
+  metricsServer.close();
+  process.exit(0);
+});
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGTERM', () => {
+  logger.info('Shutting down...');
+  fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
+  jetstream.close();
+  labelerServer.stop();
+  metricsServer.close();
+  process.exit(0);
+});
