@@ -68,7 +68,7 @@ export const LABELS: Label[] = [
   },
   {
     rkey: '3lbugbe6gah2c',
-    identifier: 'mr wobbles',
+    identifier: 'mr-wobbles',
     locales: [
       { lang: 'en', name: 'mr wobbles 🐈‍⬛', description: 'mr wobbles'},
     ]
@@ -145,42 +145,42 @@ export const LABELS: Label[] = [
   },
   {
     rkey: '3lbugvejnxs2c',
-    identifier: 'le monde',
+    identifier: 'le-monde',
     locales: [
       { lang: 'en', name: 'le monde', description: 'henry'},
     ]
   },
   {
     rkey: '3lbuhhir64s2c',
-    identifier: 'paris?',
+    identifier: 'paris',
     locales: [
       { lang: 'en', name: 'paris? 📨', description: 'email 1'},
     ]
   },
   {
     rkey: '3lbuhhir7422c',
-    identifier: 'you are a dark sorcerer',
+    identifier: 'dark-sorcerer',
     locales: [
       { lang: 'en', name: 'you are a dark sorcerer 📨', description: 'email 2'},
     ]
   },
   {
     rkey: '3lbuhhir7432c',
-    identifier: 'a mass of fools and knaves',
+    identifier: 'fools-knaves',
     locales: [
       { lang: 'en', name: 'a mass of fools and knaves 📨', description: 'email 3'},
     ]
   },
   {
     rkey: '3lbuhhir7442c',
-    identifier: 'hometown stuff',
+    identifier: 'hometown-stuff',
     locales: [
       { lang: 'en', name: 'hometown stuff 📨', description: 'email 4'},
     ]
   },
   {
     rkey: '3lbuhhira3e2c',
-    identifier: 'bad metaphors about maps',
+    identifier: 'bad-metaphors',
     locales: [
       { lang: 'en', name: 'bad metaphors about maps 📨', description: 'email 5'},
     ]
